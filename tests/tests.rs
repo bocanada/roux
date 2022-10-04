@@ -26,11 +26,17 @@ mod tests {
         let username = env::var("USERNAME").unwrap();
         let password = env::var("PASSWORD").unwrap();
 
+        println!("{} {} {} {}", client_id, client_secret, username, password);
+
         let client = Reddit::new(&USER_AGENT, &client_id, &client_secret)
             .username(&username)
             .password(&password)
             .login()
             .await;
+
+        if let Err(ref e) = client {
+            eprintln!("{}", e)
+        }
 
         assert!(client.is_ok());
 

@@ -147,6 +147,7 @@ impl Reddit {
                 AuthResponse::AuthData { access_token } => access_token,
                 AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
             };
+
             let mut headers = header::HeaderMap::new();
 
             headers.insert(
