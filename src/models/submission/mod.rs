@@ -27,7 +27,7 @@ pub struct GalleryData {
 pub struct MediaProperties {
     #[serde(rename = "u")]
     /// The media url.
-    pub url: String,
+    pub url: Option<String>,
     #[serde(rename = "x")]
     /// The media width.
     pub width: usize,
