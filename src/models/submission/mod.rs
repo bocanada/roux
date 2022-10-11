@@ -49,7 +49,7 @@ pub struct MediaData {
     /// The media status.
     pub status: String,
     /// The biggest preview.
-    pub s: MediaProperties,
+    pub s: Option<MediaProperties>,
 }
 
 /// RedditVideo
