@@ -182,4 +182,17 @@ impl Reddit {
         let reddit = self.create_client().await?;
         Ok(models::Subreddit::new_oauth(name, &reddit.client))
     }
+
+    /// Login the app.
+    #[maybe_async::maybe_async]
+    pub async fn client_login(self) -> Result<Self, util::RouxError> {
+        self.create_client().await
+    }
+
+    /// Create a new authenticated `Subreddit` instance.
+    /// This allows you to re-use the same `Reddit` instance over multiple `Subreddit`.
+    #[maybe_async::maybe_async]
+    pub async fn auth_subreddit(&self, name: &str) -> Result<models::Subreddit, util::RouxError> {
+        Ok(models::Subreddit::new_oauth(name, &self.client))
+    }
 }
