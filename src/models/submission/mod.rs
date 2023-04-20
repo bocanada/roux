@@ -1,8 +1,73 @@
 //! # Subreddit Submission Responses
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::models::response::BasicListing;
+
+/// GalleryData
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GalleryItemData {
+    /// The gallery item id.
+    pub id: i64,
+    /// The gallery item media id.
+    pub media_id: String,
+}
+
+/// GalleryData
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GalleryData {
+    /// The gallery items.
+    pub items: Vec<GalleryItemData>,
+}
+
+/// MediaData
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MediaProperties {
+    #[serde(rename = "u")]
+    /// The media url.
+    pub url: Option<String>,
+    #[serde(rename = "x")]
+    /// The media width.
+    pub width: usize,
+    #[serde(rename = "y")]
+    /// The media height.
+    pub height: usize,
+}
+
+/// MediaData
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MediaData {
+    /// The media type.
+    pub e: String,
+    /// The media id.
+    pub id: String,
+    /// The media mime type.
+    #[serde(rename = "m")]
+    pub mime: String,
+    /// The media status.
+    pub status: String,
+    /// The biggest preview.
+    pub s: Option<MediaProperties>,
+}
+
+/// RedditVideo
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RedditVideo {
+    /// The video url.
+    pub fallback_url: String,
+}
+
+/// Media
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Media {
+    /// Where the media comes from.
+    #[serde(rename = "type")]
+    pub media_type: Option<String>,
+    /// The reddit video.
+    pub reddit_video: Option<RedditVideo>,
+}
 
 /// SubmissionsData
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,6 +199,12 @@ pub struct SubmissionData {
     pub visited: bool,
     /// The number of reports, if the user is a moderator of this subreddit.
     pub num_reports: Option<u64>,
+    /// The items of a gallery.
+    pub gallery_data: Option<GalleryData>,
+    /// The media metadata.
+    pub media_metadata: Option<HashMap<String, MediaData>>,
+    /// This post's media.
+    pub media: Option<Media>,
 }
 
 /// Submissions
