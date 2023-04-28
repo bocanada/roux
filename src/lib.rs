@@ -110,6 +110,12 @@ impl Reddit {
         }
     }
 
+    /// Sets the internal `reqwest::Client` to make requests with.
+    pub fn with_client(mut self, client: Client) -> Reddit {
+        self.client = client;
+        self
+    }
+
     /// Sets username.
     pub fn username(mut self, username: &str) -> Reddit {
         self.config.username = Some(username.to_owned());
