@@ -5,6 +5,8 @@
 //! "next" and "prev" buttons on the site and in combination with count can be used to page
 //! through the listing.
 
+use url::Url;
+
 /// Basic feed options
 #[derive(Clone, Debug)]
 pub struct FeedOption {
@@ -71,33 +73,33 @@ impl FeedOption {
     }
 
     /// Build a url from `FeedOption`
-    pub fn build_url(self, url: &mut String) {
-        // Add a fake url attr so I don't have to parse things
-        url.push_str(&String::from("?"));
-
+    pub fn build_url(self, url: &mut Url) {
         if let Some(after) = self.after {
-            url.push_str(&format!("&after={}", after));
+            url.query_pairs_mut().append_pair("after", &after);
         } else if let Some(before) = self.before {
-            url.push_str(&format!("&before={}", before));
+            url.query_pairs_mut().append_pair("before", &before);
         }
 
         if let Some(count) = self.count {
-            url.push_str(&format!("&count={}", count));
+            url.query_pairs_mut()
+                .append_pair("count", &count.to_string());
         }
 
         if let Some(limit) = self.limit {
-            url.push_str(&format!("&limit={}", limit));
+            url.query_pairs_mut()
+                .append_pair("limit", &limit.to_string());
         }
 
         if let Some(period) = self.period {
-            url.push_str(&format!("&t={}", period.get_string_for_period()));
+            url.query_pairs_mut()
+                .append_pair("t", period.get_string_for_period());
         }
 
         // HACK : the previous option won't work if a '&' isn't appended for some reason
         // Eg. &after={} won't return correct page
         // Eg. &after={}&limit={} returns correct page but won't return correct limit
         // I have no idea why.
-        url.push_str(&String::from("&"));
+        url.query_pairs_mut().append_key_only("");
     }
 }
 
@@ -140,6 +142,10 @@ impl TimePeriod {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use url::Url;
+
     use super::FeedOption;
 
     #[test]
@@ -147,10 +153,12 @@ mod tests {
         let after = "some_after";
         let options = FeedOption::new().after(after);
 
-        let url = &mut String::from("");
+        let url = &mut Url::from_str("http://localhost").unwrap();
         options.build_url(url);
 
-        assert!(*url == format!("?&after={}&", after))
+        eprintln!("{url:#?}");
+
+        assert!(url.query().unwrap() == format!("after={}&", after))
     }
 
     #[test]
@@ -158,10 +166,10 @@ mod tests {
         let before = "some_before";
         let options = FeedOption::new().before(before);
 
-        let url = &mut String::from("");
+        let url = &mut Url::from_str("http://localhost").unwrap();
         options.build_url(url);
 
-        assert!(*url == format!("?&before={}&", before))
+        assert!(url.query().unwrap() == format!("before={}&", before))
     }
 
     #[test]
@@ -169,9 +177,9 @@ mod tests {
         let count = 100u32;
         let options = FeedOption::new().count(count);
 
-        let url = &mut String::from("");
+        let url = &mut Url::from_str("http://localhost").unwrap();
         options.build_url(url);
 
-        assert!(*url == format!("?&count={}&", count))
+        assert!(url.query().unwrap() == format!("count={}&", count))
     }
 }

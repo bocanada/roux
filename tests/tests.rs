@@ -12,7 +12,6 @@ mod tests {
     use roux::util::FeedOption;
     use roux::Reddit;
     #[cfg(not(feature = "blocking"))]
-    use tokio;
 
     static USER_AGENT: &str = "macos:roux:v1.4.0 (by /u/beanpup_py)";
 
@@ -28,7 +27,7 @@ mod tests {
 
         println!("{} {} {} {}", client_id, client_secret, username, password);
 
-        let client = Reddit::new(&USER_AGENT, &client_id, &client_secret)
+        let client = Reddit::new(USER_AGENT, &client_id, &client_secret)
             .username(&username)
             .password(&password)
             .login()
@@ -65,7 +64,7 @@ mod tests {
         assert_ne!(last_child_id1, last_child_id2);
         assert_eq!(saved2.data.children.len(), 5);
 
-        let new_client = Reddit::new(&USER_AGENT, &client_id, &client_secret)
+        let new_client = Reddit::new(USER_AGENT, &client_id, &client_secret)
             .username(&username)
             .password(&password)
             .subreddit("astolfo")

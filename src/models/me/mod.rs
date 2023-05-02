@@ -5,12 +5,14 @@ pub mod response;
 
 extern crate reqwest;
 extern crate serde_json;
+use ::url::Url;
 use serde::Serialize;
 
 use crate::client::{Client, Response};
 use crate::config::Config;
 use crate::models::me::response::MeData;
 use crate::models::{Friend, Inbox, Saved};
+use crate::util::url::JoinSegmentsExt;
 use crate::util::{url, FeedOption, RouxError};
 
 /// Me
@@ -20,6 +22,7 @@ pub struct Me {
     pub config: Config,
     /// Client
     pub client: Client,
+    base_url: Url,
 }
 
 impl Me {
@@ -28,17 +31,13 @@ impl Me {
         Me {
             config: config.to_owned(),
             client: client.to_owned(),
+            base_url: Url::parse("https://oauth.reddit.com/").unwrap(),
         }
     }
 
     #[maybe_async::maybe_async]
-    async fn get(&self, url: &str) -> Result<Response, RouxError> {
-        let get_url = url::build_oauth(url);
-
-        match self.client.get(&get_url[..]).send().await {
-            Ok(response) => Ok(response),
-            Err(e) => Err(e.into()),
-        }
+    async fn get(&self, url: Url) -> Result<Response, RouxError> {
+        Ok(self.client.get(url).send().await?)
     }
 
     #[maybe_async::maybe_async]
@@ -54,7 +53,8 @@ impl Me {
     /// Get me
     #[maybe_async::maybe_async]
     pub async fn me(&self) -> Result<MeData, RouxError> {
-        match self.get("api/v1/me").await {
+        let url = self.base_url.join_segments(&["api", "v1", "me"]);
+        match self.get(url).await {
             Ok(res) => Ok(res.json::<MeData>().await?),
             Err(e) => Err(e),
         }
@@ -169,58 +169,66 @@ impl Me {
     /// Get user's submitted posts.
     #[maybe_async::maybe_async]
     pub async fn inbox(&self) -> Result<Inbox, RouxError> {
-        Ok(self.get("message/inbox").await?.json::<Inbox>().await?)
+        let url = self.base_url.join_segments(&["message", "inbox"]);
+        Ok(self.get(url).await?.json::<Inbox>().await?)
     }
 
     /// Get saved
     #[maybe_async::maybe_async]
     pub async fn saved(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
-        let url = &mut format!(
-            "user/{}/saved/.json",
-            self.config.username.to_owned().unwrap()
-        );
+        let mut url = self.base_url.join_segments(&[
+            "user",
+            self.config.username.as_ref().unwrap(),
+            "saved",
+            ".json",
+        ]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
-        Ok(self.get(&url).await?.json::<Saved>().await?)
+        Ok(self.get(url).await?.json::<Saved>().await?)
     }
 
     /// Get upvoted
     #[maybe_async::maybe_async]
     pub async fn upvoted(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
-        let url = &mut format!(
-            "user/{}/upvoted/.json",
-            self.config.username.to_owned().unwrap()
-        );
+        let mut url = self.base_url.join_segments(&[
+            "user",
+            self.config.username.as_ref().unwrap(),
+            "upvoted",
+            ".json",
+        ]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
-        Ok(self.get(&url).await?.json::<Saved>().await?)
+        Ok(self.get(url).await?.json::<Saved>().await?)
     }
 
     /// Get downvoted
     #[maybe_async::maybe_async]
     pub async fn downvoted(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
-        let url = &mut format!(
-            "user/{}/downvoted/.json",
-            self.config.username.to_owned().unwrap()
-        );
+        let mut url = self.base_url.join_segments(&[
+            "user",
+            self.config.username.as_ref().unwrap(),
+            "downvoted",
+            ".json",
+        ]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
-        Ok(self.get(&url).await?.json::<Saved>().await?)
+        Ok(self.get(url).await?.json::<Saved>().await?)
     }
 
     /// Get users unread messages
     #[maybe_async::maybe_async]
     pub async fn unread(&self) -> Result<Inbox, RouxError> {
-        Ok(self.get("message/unread").await?.json::<Inbox>().await?)
+        let url = self.base_url.join_segments(&["message", "unread"]);
+        Ok(self.get(url).await?.json::<Inbox>().await?)
     }
 
     /// Mark messages as read

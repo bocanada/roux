@@ -27,7 +27,10 @@
 
 extern crate serde_json;
 
+use url::Url;
+
 use crate::client::Client;
+use crate::util::url::JoinSegmentsExt;
 use crate::util::{FeedOption, RouxError};
 
 use crate::models::{About, Comments, Overview, Submissions};
@@ -37,6 +40,7 @@ pub struct User {
     /// User's name.
     pub user: String,
     client: Client,
+    base_url: Url,
 }
 
 impl User {
@@ -44,6 +48,7 @@ impl User {
     pub fn new(user: &str) -> User {
         User {
             user: user.to_owned(),
+            base_url: Url::parse("https://www.reddit.com/user/").unwrap(),
             client: Client::new(),
         }
     }
@@ -51,33 +56,33 @@ impl User {
     /// Get user's overview.
     #[maybe_async::maybe_async]
     pub async fn overview(&self, options: Option<FeedOption>) -> Result<Overview, RouxError> {
-        let url = &mut format!("https://www.reddit.com/user/{}/overview/.json", self.user);
+        let mut url = self
+            .base_url
+            .join_segments(&[&self.user, "overview", ".json"]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
-        Ok(self
-            .client
-            .get(&url.to_owned())
-            .send()
-            .await?
-            .json::<Overview>()
-            .await?)
+        let resp = self.client.get(url).send().await?;
+
+        Ok(resp.json::<Overview>().await?)
     }
 
     /// Get user's submitted posts.
     #[maybe_async::maybe_async]
     pub async fn submitted(&self, options: Option<FeedOption>) -> Result<Submissions, RouxError> {
-        let url = &mut format!("https://www.reddit.com/user/{}/submitted/.json", self.user);
+        let mut url = self
+            .base_url
+            .join_segments(&[&self.user, "submitted", ".json"]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
         Ok(self
             .client
-            .get(&url.to_owned())
+            .get(url)
             .send()
             .await?
             .json::<Submissions>()
@@ -87,15 +92,17 @@ impl User {
     /// Get user's submitted comments.
     #[maybe_async::maybe_async]
     pub async fn comments(&self, options: Option<FeedOption>) -> Result<Comments, RouxError> {
-        let url = &mut format!("https://www.reddit.com/user/{}/comments/.json", self.user);
+        let mut url = self
+            .base_url
+            .join_segments(&[&self.user, "comments", ".json"]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
         Ok(self
             .client
-            .get(&url.to_owned())
+            .get(url)
             .send()
             .await?
             .json::<Comments>()
@@ -105,19 +112,13 @@ impl User {
     /// Get user's about page
     #[maybe_async::maybe_async]
     pub async fn about(&self, options: Option<FeedOption>) -> Result<About, RouxError> {
-        let url = &mut format!("https://www.reddit.com/user/{}/about/.json", self.user);
+        let mut url = self.base_url.join_segments(&[&self.user, "about", ".json"]);
 
         if let Some(options) = options {
-            options.build_url(url);
+            options.build_url(&mut url);
         }
 
-        Ok(self
-            .client
-            .get(&url.to_owned())
-            .send()
-            .await?
-            .json::<About>()
-            .await?)
+        Ok(self.client.get(url).send().await?.json::<About>().await?)
     }
 }
 
