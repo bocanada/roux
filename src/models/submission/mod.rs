@@ -40,7 +40,7 @@ pub struct MediaProperties {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MediaData {
     /// The media type.
-    pub e: String,
+    pub e: Option<String>,
     /// The media id.
     pub id: String,
     /// The media mime type.
