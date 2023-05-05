@@ -141,7 +141,7 @@ impl Subreddit {
     /// from the `Reddit` module.
     pub fn new_oauth(name: &str, client: &Client) -> Subreddit {
         let subreddit_url = Url::parse_with_params(
-            &format!("https://www.reddit.com/r/{name}/"),
+            &format!("https://oauth.reddit.com/r/{name}/"),
             &[("raw_json", "1")],
         )
         .unwrap();
