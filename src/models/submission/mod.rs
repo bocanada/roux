@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use url::Url;
 
 use crate::models::response::BasicListing;
 
@@ -27,7 +28,7 @@ pub struct GalleryData {
 pub struct MediaProperties {
     #[serde(rename = "u")]
     /// The media url.
-    pub url: Option<String>,
+    pub url: Option<Url>,
     #[serde(rename = "x")]
     /// The media width.
     pub width: usize,
@@ -49,14 +50,15 @@ pub struct MediaData {
     /// The media status.
     pub status: String,
     /// The biggest preview.
-    pub s: Option<MediaProperties>,
+    #[serde(rename = "s")]
+    pub biggest_preview: Option<MediaProperties>,
 }
 
 /// RedditVideo
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RedditVideo {
     /// The video url.
-    pub fallback_url: String,
+    pub fallback_url: Url,
 }
 
 /// Media
@@ -183,7 +185,7 @@ pub struct SubmissionData {
     /// time.
     pub created: f64,
     /// The linked URL, if this is a link post.
-    pub url: Option<String>,
+    pub url: Option<Url>,
     /// The text of the author's flair, if present. Can be an empty string if the flair is present
     /// but contains no text.
     pub author_flair_text: Option<String>,
