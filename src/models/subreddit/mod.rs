@@ -71,6 +71,7 @@ use reqwest::Url;
 use crate::models::subreddit::response::{SubredditData, SubredditResponse, SubredditsData};
 
 use crate::client::Client;
+use crate::util::defaults::default_client;
 use crate::util::{url::JoinSegmentsExt, FeedOption, RouxError};
 
 use crate::models::{Comments, Moderators, Submissions};
@@ -101,7 +102,7 @@ impl Subreddits {
             options.build_url(&mut url);
         }
 
-        let client = Client::new();
+        let client = default_client();
 
         Ok(client
             .get(url)
@@ -123,25 +124,27 @@ pub struct Subreddit {
 impl Subreddit {
     /// Create a new `Subreddit` instance.
     pub fn new(name: &str) -> Subreddit {
-        let subreddit_url =
-            Url::parse_with_params("https://www.reddit.com/r/", &[("raw_json", "1")])
-                .unwrap()
-                .join_segments(&[name]);
+        let subreddit_url = Url::parse_with_params(
+            &format!("https://www.reddit.com/r/{name}/"),
+            &[("raw_json", "1")],
+        )
+        .unwrap();
 
         Subreddit {
             name: name.to_owned(),
             url: subreddit_url,
-            client: Client::new(),
+            client: default_client(),
         }
     }
 
     /// Create a new authenticated `Subreddit` instance using an oauth client
     /// from the `Reddit` module.
     pub fn new_oauth(name: &str, client: &Client) -> Subreddit {
-        let subreddit_url =
-            Url::parse_with_params("https://oauth.reddit.com/r/", &[("raw_json", "1")])
-                .unwrap()
-                .join_segments(&[name]);
+        let subreddit_url = Url::parse_with_params(
+            &format!("https://www.reddit.com/r/{name}/"),
+            &[("raw_json", "1")],
+        )
+        .unwrap();
 
         Subreddit {
             name: name.to_owned(),
@@ -184,14 +187,13 @@ impl Subreddit {
         limit: u32,
         options: Option<FeedOption>,
     ) -> Result<Submissions, RouxError> {
-        let mut url = self.url.join_segments(&[ty]);
+        let mut url = self.url.join(&format!("{ty}.json")).unwrap();
         url.query_pairs_mut()
             .append_pair("limit", &limit.to_string());
 
         if let Some(options) = options {
             options.build_url(&mut url);
         }
-
         Ok(self
             .client
             .get(url)
@@ -208,7 +210,7 @@ impl Subreddit {
         depth: Option<u32>,
         limit: Option<u32>,
     ) -> Result<Comments, RouxError> {
-        let mut url = self.url.join_segments(&[ty, ".json"]);
+        let mut url = self.url.join(&format!("{ty}.json")).unwrap();
 
         if let Some(depth) = depth {
             url.query_pairs_mut()
@@ -220,28 +222,19 @@ impl Subreddit {
                 .append_pair("limit", &limit.to_string());
         }
 
+        let is_post_comments = url.path().contains("comments/");
+
+        let resp = self.client.get(url).send().await?.error_for_status()?;
+
         // This is one of the dumbest APIs I've ever seen.
         // The comments for a subreddit are stored in a normal hash map
         // but for posts the comments are in an array with the ONLY item
         // being same hash map as the one for subreddits...
-        if url.path().contains("comments/") {
-            let mut comments = self
-                .client
-                .get(url)
-                .send()
-                .await?
-                .json::<Vec<Comments>>()
-                .await?;
-
+        if is_post_comments {
+            let mut comments = resp.json::<Vec<Comments>>().await?;
             Ok(comments.pop().unwrap())
         } else {
-            Ok(self
-                .client
-                .get(url)
-                .send()
-                .await?
-                .json::<Comments>()
-                .await?)
+            Ok(resp.json::<Comments>().await?)
         }
     }
 

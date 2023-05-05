@@ -30,7 +30,7 @@ extern crate serde_json;
 use url::Url;
 
 use crate::client::Client;
-use crate::util::url::JoinSegmentsExt;
+use crate::util::{defaults::default_client, url::JoinSegmentsExt};
 use crate::util::{FeedOption, RouxError};
 
 use crate::models::{About, Comments, Overview, Submissions};
@@ -49,7 +49,7 @@ impl User {
         User {
             user: user.to_owned(),
             base_url: Url::parse("https://www.reddit.com/user/").unwrap(),
-            client: Client::new(),
+            client: default_client(),
         }
     }
 
