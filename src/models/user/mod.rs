@@ -5,11 +5,9 @@
 //! ```no_run
 //! use roux::User;
 //! use roux::util::FeedOption;
-//! #[cfg(feature = "async")]
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //!     let user = User::new("kasuporo");
 //!     // Now you are able to:
@@ -54,7 +52,7 @@ impl User {
     }
 
     /// Get user's overview.
-    #[maybe_async::maybe_async]
+
     pub async fn overview(&self, options: Option<FeedOption>) -> Result<Overview, RouxError> {
         let mut url = self
             .base_url
@@ -70,7 +68,7 @@ impl User {
     }
 
     /// Get user's submitted posts.
-    #[maybe_async::maybe_async]
+
     pub async fn submitted(&self, options: Option<FeedOption>) -> Result<Submissions, RouxError> {
         let mut url = self
             .base_url
@@ -90,7 +88,7 @@ impl User {
     }
 
     /// Get user's submitted comments.
-    #[maybe_async::maybe_async]
+
     pub async fn comments(&self, options: Option<FeedOption>) -> Result<Comments, RouxError> {
         let mut url = self
             .base_url
@@ -110,7 +108,7 @@ impl User {
     }
 
     /// Get user's about page
-    #[maybe_async::maybe_async]
+
     pub async fn about(&self, options: Option<FeedOption>) -> Result<About, RouxError> {
         let mut url = self.base_url.join_segments(&[&self.user, "about", ".json"]);
 
@@ -127,7 +125,7 @@ mod tests {
     use super::User;
     use crate::util::FeedOption;
 
-    #[maybe_async::test(feature = "blocking", async(not(feature = "blocking"), tokio::test))]
+    #[tokio::test]
     async fn test_no_auth() {
         let user = User::new("beneater");
 

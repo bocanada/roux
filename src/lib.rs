@@ -7,11 +7,9 @@
 //! To create an OAuth client with the reddit API, use the `Reddit` class.
 //! ```no_run
 //! use roux::Reddit;
-//! #[cfg(feature = "async")]
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //! let client = Reddit::new("USER_AGENT", "CLIENT_ID", "CLIENT_SECRET")
 //!     .username("USERNAME")
@@ -34,11 +32,9 @@
 //! ### Submit A Text Post
 //! ```no_run
 //! use roux::Reddit;
-//! #[cfg(feature = "async")]
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //! let client = Reddit::new("USER_AGENT", "CLIENT_ID", "CLIENT_SECRET")
 //!     .username("USERNAME")
@@ -54,11 +50,9 @@
 //! ### Submit A Link Post
 //! ```no_run
 //! use roux::Reddit;
-//! #[cfg(feature = "async")]
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //! let client = Reddit::new("USER_AGENT", "CLIENT_ID", "CLIENT_SECRET")
 //!     .username("USERNAME")
@@ -128,7 +122,6 @@ impl Reddit {
         self
     }
 
-    #[maybe_async::maybe_async]
     async fn create_client(mut self) -> Result<Reddit, util::RouxError> {
         let url = &url::build_url("api/v1/access_token")[..];
         let form = [
@@ -176,28 +169,24 @@ impl Reddit {
     }
 
     /// Login as a user.
-    #[maybe_async::maybe_async]
     pub async fn login(self) -> Result<me::Me, util::RouxError> {
         let reddit = self.create_client().await?;
         Ok(me::Me::new(&reddit.config, &reddit.client))
     }
 
     /// Create a new authenticated `Subreddit` instance.
-    #[maybe_async::maybe_async]
     pub async fn subreddit(self, name: &str) -> Result<models::Subreddit, util::RouxError> {
         let reddit = self.create_client().await?;
         Ok(models::Subreddit::new_oauth(name, &reddit.client))
     }
 
     /// Login the app.
-    #[maybe_async::maybe_async]
     pub async fn client_login(self) -> Result<Self, util::RouxError> {
         self.create_client().await
     }
 
     /// Create a new authenticated `Subreddit` instance.
     /// This allows you to re-use the same `Reddit` instance over multiple `Subreddit`.
-    #[maybe_async::maybe_async]
     pub async fn auth_subreddit(&self, name: &str) -> Result<models::Subreddit, util::RouxError> {
         Ok(models::Subreddit::new_oauth(name, &self.client))
     }

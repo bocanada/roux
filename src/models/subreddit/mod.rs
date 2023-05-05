@@ -4,11 +4,10 @@
 //! # Basic Usage
 //! ```no_run
 //! use roux::Subreddit;
-//! #[cfg(feature = "async")]
+
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //!     let subreddit = Subreddit::new("rust");
 //!     // Now you are able to:
@@ -40,11 +39,9 @@
 //! ```no_run
 //! use roux::Subreddit;
 //! use roux::util::{FeedOption, TimePeriod};
-//! #[cfg(feature = "async")]
 //! use tokio;
 //!
-//! #[cfg_attr(feature = "async", tokio::main)]
-//! #[maybe_async::maybe_async]
+//! #[tokio::main]
 //! async fn main() {
 //!     let subreddit = Subreddit::new("astolfo");
 //!
@@ -81,7 +78,7 @@ pub struct Subreddits;
 
 impl Subreddits {
     /// Search subreddits
-    #[maybe_async::maybe_async]
+
     pub async fn search(
         name: &str,
         limit: Option<u32>,
@@ -154,7 +151,7 @@ impl Subreddit {
     }
 
     /// Get moderators (requires authentication)
-    #[maybe_async::maybe_async]
+
     pub async fn moderators(&self) -> Result<Moderators, RouxError> {
         let url = self.url.join_segments(&["about", "moderators", ".json"]);
         Ok(self
@@ -167,7 +164,7 @@ impl Subreddit {
     }
 
     /// Get subreddit data.
-    #[maybe_async::maybe_async]
+
     pub async fn about(&self) -> Result<SubredditData, RouxError> {
         let url = self.url.join_segments(&["about", ".json"]);
         Ok(self
@@ -180,14 +177,13 @@ impl Subreddit {
             .data)
     }
 
-    #[maybe_async::maybe_async]
     async fn get_feed(
         &self,
         ty: &str,
         limit: u32,
         options: Option<FeedOption>,
     ) -> Result<Submissions, RouxError> {
-        let mut url = self.url.join(&format!("{ty}.json")).unwrap();
+        let mut url = self.url.join_segments(&[&format!("{ty}.json")]);
         url.query_pairs_mut()
             .append_pair("limit", &limit.to_string());
 
@@ -204,7 +200,6 @@ impl Subreddit {
             .await?)
     }
 
-    #[maybe_async::maybe_async]
     async fn get_comment_feed(
         &self,
         ty: &str,
@@ -212,6 +207,7 @@ impl Subreddit {
         limit: Option<u32>,
     ) -> Result<Comments, RouxError> {
         let mut url = self.url.join(&format!("{ty}.json")).unwrap();
+        url.query_pairs_mut().append_pair("raw_json", "1");
 
         if let Some(depth) = depth {
             url.query_pairs_mut()
@@ -240,7 +236,6 @@ impl Subreddit {
     }
 
     /// Get hot posts.
-    #[maybe_async::maybe_async]
     pub async fn hot(
         &self,
         limit: u32,
@@ -250,7 +245,6 @@ impl Subreddit {
     }
 
     /// Get rising posts.
-    #[maybe_async::maybe_async]
     pub async fn rising(
         &self,
         limit: u32,
@@ -260,7 +254,6 @@ impl Subreddit {
     }
 
     /// Get top posts.
-    #[maybe_async::maybe_async]
     pub async fn top(
         &self,
         limit: u32,
@@ -270,7 +263,6 @@ impl Subreddit {
     }
 
     /// Get latest posts.
-    #[maybe_async::maybe_async]
     pub async fn latest(
         &self,
         limit: u32,
@@ -280,7 +272,6 @@ impl Subreddit {
     }
 
     /// Get latest comments.
-    #[maybe_async::maybe_async]
     pub async fn latest_comments(
         &self,
         depth: Option<u32>,
@@ -290,7 +281,6 @@ impl Subreddit {
     }
 
     /// Get comments from article.
-    #[maybe_async::maybe_async]
     pub async fn article_comments(
         &self,
         article: &str,
@@ -307,7 +297,7 @@ mod tests {
     use super::Subreddit;
     use super::Subreddits;
 
-    #[maybe_async::test(feature = "blocking", async(not(feature = "blocking"), tokio::test))]
+    #[tokio::test]
     async fn test_no_auth() {
         let subreddit = Subreddit::new("astolfo");
 

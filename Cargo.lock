@@ -173,12 +173,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86d7a0c1aa76363dac491de0ee99faf6941128376f1cf96f07db7603b7de69dd"
 
 [[package]]
-name = "futures-io"
-version = "0.3.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89d422fa3cbe3b40dca574ab087abb5bc98258ea57eea3fd6f1fa7162c778b91"
-
-[[package]]
 name = "futures-sink"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -197,12 +191,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ef6b17e481503ec85211fed8f39d1970f128935ca1f814cd32ac4a6842e84ab"
 dependencies = [
  "futures-core",
- "futures-io",
  "futures-task",
- "memchr",
  "pin-project-lite",
  "pin-utils",
- "slab",
 ]
 
 [[package]]
@@ -415,17 +406,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "maybe-async"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f1b8c13cb1f814b634a96b2c725449fe7ed464a7b8781de8688be5ffbd3f305"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -644,7 +624,6 @@ name = "roux"
 version = "2.2.7"
 dependencies = [
  "dotenv",
- "maybe-async",
  "reqwest",
  "serde",
  "serde_json",
