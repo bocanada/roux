@@ -8,26 +8,27 @@ extern crate serde_json;
 use ::url::Url;
 use serde::Serialize;
 
-use crate::client::{Client, Response};
+use crate::client::Response;
 use crate::config::Config;
 use crate::models::me::response::MeData;
 use crate::models::{Friend, Inbox, Saved};
 use crate::util::url::JoinSegmentsExt;
 use crate::util::{url, FeedOption, RouxError};
+use crate::RedditClient;
 
 /// Me
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Me {
     /// Config
     pub config: Config,
     /// Client
-    pub client: Client,
+    pub client: RedditClient,
     base_url: Url,
 }
 
 impl Me {
     /// Create a new `me`
-    pub fn new(config: &Config, client: &Client) -> Me {
+    pub fn new(config: &Config, client: &RedditClient) -> Me {
         Me {
             config: config.to_owned(),
             client: client.to_owned(),
@@ -36,7 +37,17 @@ impl Me {
     }
 
     async fn get(&self, url: Url) -> Result<Response, RouxError> {
-        Ok(self.client.get(url).send().await?)
+        let resp = self
+            .client
+            .get(url)
+            .query(&[("raw_json", "1")])
+            .send()
+            .await?;
+        let status = resp.status();
+        if status.is_client_error() || status.is_server_error() {
+            return Err(RouxError::Status(resp));
+        }
+        Ok(resp)
     }
 
     async fn post<T: Serialize>(&self, url: &str, form: T) -> Result<Response, RouxError> {
@@ -51,10 +62,7 @@ impl Me {
     /// Get me
     pub async fn me(&self) -> Result<MeData, RouxError> {
         let url = self.base_url.join_segments(&["api", "v1", "me"]);
-        match self.get(url).await {
-            Ok(res) => Ok(res.json::<MeData>().await?),
-            Err(e) => Err(e),
-        }
+        Ok(self.get(url).await?.json::<MeData>().await?)
     }
 
     /// Submit link

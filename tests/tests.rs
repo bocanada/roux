@@ -38,7 +38,9 @@ mod tests {
 
         let me = client.unwrap();
 
-        assert!(me.me().await.is_ok());
+        let me_data = me.me().await;
+
+        assert!(me_data.is_ok());
 
         let options = FeedOption::new().limit(5);
 

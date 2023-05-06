@@ -67,8 +67,8 @@ use serde::de::DeserializeOwned;
 use url::Url;
 
 use crate::models::subreddit::response::{SubredditData, SubredditResponse, SubredditsData};
+use crate::RedditClient;
 
-use crate::client::Client;
 use crate::util::defaults::default_client;
 use crate::util::{url::JoinSegmentsExt, FeedOption, RouxError};
 
@@ -115,7 +115,7 @@ pub struct Subreddit {
     /// Name of subreddit.
     pub name: String,
     url: Url,
-    client: Client,
+    client: RedditClient,
 }
 
 impl Subreddit {
@@ -132,7 +132,7 @@ impl Subreddit {
 
     /// Create a new authenticated `Subreddit` instance using an oauth client
     /// from the `Reddit` module.
-    pub fn new_oauth(name: &str, client: &Client) -> Subreddit {
+    pub(crate) fn new_oauth(name: &str, client: &RedditClient) -> Subreddit {
         let subreddit_url = Url::parse(&format!("https://oauth.reddit.com/r/{name}/")).unwrap();
 
         Subreddit {
@@ -140,6 +140,13 @@ impl Subreddit {
             url: subreddit_url,
             client: client.to_owned(),
         }
+    }
+
+    /// Logs the internal client back in.
+    /// This is necessary since the token expires.
+    pub async fn login(self) -> Result<Self, RouxError> {
+        let client = self.client.login().await?;
+        Ok(Self { client, ..self })
     }
 
     /// Get moderators (requires authentication)

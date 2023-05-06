@@ -65,10 +65,11 @@
 //! }
 //! ```
 
+use std::time::Duration;
+
 use serde::Deserialize;
 
-use reqwest::header;
-use reqwest::header::USER_AGENT;
+use reqwest::{header, IntoUrl, RequestBuilder};
 
 mod config;
 
@@ -84,94 +85,59 @@ use util::url;
 
 /// Client to use OAuth with Reddit.
 pub struct Reddit {
-    config: config::Config,
-    client: Client,
+    client: RedditClient,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum AuthResponse {
-    AuthData { access_token: String },
-    ErrorData { error: String },
+    AuthData {
+        access_token: String,
+        expires_in: u64,
+    },
+    ErrorData {
+        error: String,
+    },
 }
 
 impl Reddit {
     /// Creates a `Reddit` instance with user_agent, client_id, and client_secret.
     pub fn new(user_agent: &str, client_id: &str, client_secret: &str) -> Reddit {
         Reddit {
-            config: config::Config::new(user_agent, client_id, client_secret),
-            client: Client::new(),
+            client: RedditClient::new(
+                Client::new(),
+                config::Config::new(user_agent, client_id, client_secret),
+            ),
         }
     }
 
     /// Sets the internal `reqwest::Client` to make requests with.
     pub fn with_client(mut self, client: Client) -> Reddit {
-        self.client = client;
+        self.client.inner = client;
         self
     }
 
     /// Sets username.
     pub fn username(mut self, username: &str) -> Reddit {
-        self.config.username = Some(username.to_owned());
+        self.client.cfg.username = Some(username.to_owned());
         self
     }
 
     /// Sets password.
     pub fn password(mut self, password: &str) -> Reddit {
-        self.config.password = Some(password.to_owned());
+        self.client.cfg.password = Some(password.to_owned());
         self
     }
 
     async fn create_client(mut self) -> Result<Reddit, util::RouxError> {
-        let url = &url::build_url("api/v1/access_token")[..];
-        let form = [
-            ("grant_type", "password"),
-            ("username", &self.config.username.to_owned().unwrap()),
-            ("password", &self.config.password.to_owned().unwrap()),
-        ];
-
-        let request = self
-            .client
-            .post(url)
-            .header(USER_AGENT, &self.config.user_agent[..])
-            .basic_auth(&self.config.client_id, Some(&self.config.client_secret))
-            .form(&form);
-
-        let response = request.send().await?;
-
-        if response.status() == 200 {
-            let auth_data = response.json::<AuthResponse>().await?;
-
-            let access_token = match auth_data {
-                AuthResponse::AuthData { access_token } => access_token,
-                AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
-            };
-
-            let mut headers = header::HeaderMap::new();
-
-            headers.insert(
-                header::AUTHORIZATION,
-                header::HeaderValue::from_str(&format!("Bearer {}", access_token)).unwrap(),
-            );
-
-            headers.insert(
-                header::USER_AGENT,
-                header::HeaderValue::from_str(&self.config.user_agent[..]).unwrap(),
-            );
-
-            self.config.access_token = Some(access_token);
-            self.client = Client::builder().default_headers(headers).build().unwrap();
-
-            Ok(self)
-        } else {
-            Err(util::RouxError::Status(response))
-        }
+        self.client = self.client.login().await?;
+        Ok(self)
     }
 
     /// Login as a user.
     pub async fn login(self) -> Result<me::Me, util::RouxError> {
         let reddit = self.create_client().await?;
-        Ok(me::Me::new(&reddit.config, &reddit.client))
+        Ok(me::Me::new(&reddit.client.cfg, &reddit.client))
     }
 
     /// Create a new authenticated `Subreddit` instance.
@@ -189,5 +155,90 @@ impl Reddit {
     /// This allows you to re-use the same `Reddit` instance over multiple `Subreddit`.
     pub async fn auth_subreddit(&self, name: &str) -> Result<models::Subreddit, util::RouxError> {
         Ok(models::Subreddit::new_oauth(name, &self.client))
+    }
+}
+
+/// `RedditClient` wraps `reqwest::Client` to refresh tokens automatically.
+#[derive(Clone)]
+pub struct RedditClient {
+    inner: Client,
+
+    cfg: config::Config,
+}
+
+impl RedditClient {
+    fn new(client: Client, cfg: config::Config) -> Self {
+        Self { inner: client, cfg }
+    }
+
+    fn get(&self, url: impl IntoUrl) -> RequestBuilder {
+        let user_agent = header::HeaderValue::from_str(&self.cfg.user_agent).unwrap();
+        let mut builder = self.inner.get(url).header(header::USER_AGENT, user_agent);
+
+        if let Some(ref token) = self.cfg.access_token {
+            builder = builder.bearer_auth(token);
+        }
+
+        builder
+    }
+
+    fn post(&self, url: impl IntoUrl) -> RequestBuilder {
+        let user_agent = header::HeaderValue::from_str(&self.cfg.user_agent).unwrap();
+        let mut builder = self.inner.post(url).header(header::USER_AGENT, user_agent);
+
+        if let Some(ref token) = self.cfg.access_token {
+            builder = builder.bearer_auth(token);
+        }
+
+        builder
+    }
+
+    fn token_expired(&self) -> bool {
+        if let Some(expires_on) = self.cfg.token_expires_in {
+            return !expires_on.into_std().elapsed().is_zero();
+        };
+        true
+    }
+
+    async fn login(mut self) -> Result<RedditClient, util::RouxError> {
+        if !self.token_expired() {
+            return Ok(self);
+        };
+
+        let url = &url::build_url("api/v1/access_token")[..];
+        let form = [
+            ("grant_type", "password"),
+            ("username", &self.cfg.username.to_owned().unwrap()),
+            ("password", &self.cfg.password.to_owned().unwrap()),
+        ];
+
+        let request = self
+            .post(url)
+            .basic_auth(&self.cfg.client_id, Some(&self.cfg.client_secret))
+            .form(&form);
+
+        let response = request.send().await?;
+
+        if response.status() == 200 {
+            let auth_data = response.json::<AuthResponse>().await?;
+
+            let (access_token, expires_in) = match auth_data {
+                AuthResponse::AuthData {
+                    access_token,
+                    expires_in,
+                } => (
+                    access_token,
+                    tokio::time::Instant::now() + Duration::from_secs(expires_in),
+                ),
+                AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
+            };
+
+            self.cfg.access_token = Some(access_token);
+            self.cfg.token_expires_in = Some(expires_in);
+
+            Ok(self)
+        } else {
+            Err(util::RouxError::Status(response))
+        }
     }
 }

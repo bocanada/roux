@@ -27,9 +27,9 @@ extern crate serde_json;
 
 use url::Url;
 
-use crate::client::Client;
 use crate::util::{defaults::default_client, url::JoinSegmentsExt};
 use crate::util::{FeedOption, RouxError};
+use crate::RedditClient;
 
 use crate::models::{About, Comments, Overview, Submissions};
 
@@ -37,7 +37,7 @@ use crate::models::{About, Comments, Overview, Submissions};
 pub struct User {
     /// User's name.
     pub user: String,
-    client: Client,
+    client: RedditClient,
     base_url: Url,
 }
 
