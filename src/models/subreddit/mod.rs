@@ -63,7 +63,8 @@
 pub mod response;
 extern crate serde_json;
 
-use reqwest::Url;
+use serde::de::DeserializeOwned;
+use url::Url;
 
 use crate::models::subreddit::response::{SubredditData, SubredditResponse, SubredditsData};
 
@@ -78,7 +79,6 @@ pub struct Subreddits;
 
 impl Subreddits {
     /// Search subreddits
-
     pub async fn search(
         name: &str,
         limit: Option<u32>,
@@ -121,11 +121,7 @@ pub struct Subreddit {
 impl Subreddit {
     /// Create a new `Subreddit` instance.
     pub fn new(name: &str) -> Subreddit {
-        let subreddit_url = Url::parse_with_params(
-            &format!("https://www.reddit.com/r/{name}/"),
-            &[("raw_json", "1")],
-        )
-        .unwrap();
+        let subreddit_url = Url::parse(&format!("https://www.reddit.com/r/{name}/")).unwrap();
 
         Subreddit {
             name: name.to_owned(),
@@ -137,11 +133,7 @@ impl Subreddit {
     /// Create a new authenticated `Subreddit` instance using an oauth client
     /// from the `Reddit` module.
     pub fn new_oauth(name: &str, client: &Client) -> Subreddit {
-        let subreddit_url = Url::parse_with_params(
-            &format!("https://oauth.reddit.com/r/{name}/"),
-            &[("raw_json", "1")],
-        )
-        .unwrap();
+        let subreddit_url = Url::parse(&format!("https://oauth.reddit.com/r/{name}/")).unwrap();
 
         Subreddit {
             name: name.to_owned(),
@@ -151,30 +143,15 @@ impl Subreddit {
     }
 
     /// Get moderators (requires authentication)
-
     pub async fn moderators(&self) -> Result<Moderators, RouxError> {
         let url = self.url.join_segments(&["about", "moderators", ".json"]);
-        Ok(self
-            .client
-            .get(url)
-            .send()
-            .await?
-            .json::<Moderators>()
-            .await?)
+        self.get_json(url).await
     }
 
     /// Get subreddit data.
-
     pub async fn about(&self) -> Result<SubredditData, RouxError> {
         let url = self.url.join_segments(&["about", ".json"]);
-        Ok(self
-            .client
-            .get(url)
-            .send()
-            .await?
-            .json::<SubredditResponse>()
-            .await?
-            .data)
+        Ok(self.get_json::<SubredditResponse>(url).await?.data)
     }
 
     async fn get_feed(
@@ -190,14 +167,7 @@ impl Subreddit {
         if let Some(options) = options {
             options.build_url(&mut url);
         }
-        Ok(self
-            .client
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<Submissions>()
-            .await?)
+        self.get_json(url).await
     }
 
     async fn get_comment_feed(
@@ -207,7 +177,6 @@ impl Subreddit {
         limit: Option<u32>,
     ) -> Result<Comments, RouxError> {
         let mut url = self.url.join(&format!("{ty}.json")).unwrap();
-        url.query_pairs_mut().append_pair("raw_json", "1");
 
         if let Some(depth) = depth {
             url.query_pairs_mut()
@@ -219,19 +188,15 @@ impl Subreddit {
                 .append_pair("limit", &limit.to_string());
         }
 
-        let is_post_comments = url.path().contains("comments/");
-
-        let resp = self.client.get(url).send().await?.error_for_status()?;
-
         // This is one of the dumbest APIs I've ever seen.
         // The comments for a subreddit are stored in a normal hash map
         // but for posts the comments are in an array with the ONLY item
         // being same hash map as the one for subreddits...
-        if is_post_comments {
-            let mut comments = resp.json::<Vec<Comments>>().await?;
+        if url.path().contains("comments/") {
+            let mut comments = self.get_json::<Vec<Comments>>(url).await?;
             Ok(comments.pop().unwrap())
         } else {
-            Ok(resp.json::<Comments>().await?)
+            self.get_json::<Comments>(url).await
         }
     }
 
@@ -289,6 +254,24 @@ impl Subreddit {
     ) -> Result<Comments, RouxError> {
         self.get_comment_feed(&format!("comments/{}", article), depth, limit)
             .await
+    }
+
+    async fn get_json<T>(&self, url: Url) -> Result<T, RouxError>
+    where
+        T: DeserializeOwned,
+    {
+        let resp = self
+            .client
+            .get(url)
+            .query(&[("raw_json", "1")])
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if status.is_client_error() || status.is_server_error() {
+            return Err(RouxError::Status(resp));
+        }
+        Ok(resp.json().await?)
     }
 }
 
