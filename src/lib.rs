@@ -65,8 +65,6 @@
 //! }
 //! ```
 
-use std::time::Duration;
-
 use serde::Deserialize;
 
 use reqwest::{header, IntoUrl, RequestBuilder};
@@ -91,13 +89,8 @@ pub struct Reddit {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum AuthResponse {
-    AuthData {
-        access_token: String,
-        expires_in: u64,
-    },
-    ErrorData {
-        error: String,
-    },
+    AuthData { access_token: String },
+    ErrorData { error: String },
 }
 
 impl Reddit {
@@ -137,7 +130,7 @@ impl Reddit {
     /// Login as a user.
     pub async fn login(self) -> Result<me::Me, util::RouxError> {
         let reddit = self.create_client().await?;
-        Ok(me::Me::new(&reddit.client.cfg, &reddit.client))
+        Ok(me::Me::new(&reddit.client))
     }
 
     /// Create a new authenticated `Subreddit` instance.
@@ -193,18 +186,7 @@ impl RedditClient {
         builder
     }
 
-    fn token_expired(&self) -> bool {
-        if let Some(expires_on) = self.cfg.token_expires_in {
-            return !expires_on.into_std().elapsed().is_zero();
-        };
-        true
-    }
-
     async fn login(mut self) -> Result<RedditClient, util::RouxError> {
-        if !self.token_expired() {
-            return Ok(self);
-        };
-
         let url = &url::build_url("api/v1/access_token")[..];
         let form = [
             ("grant_type", "password"),
@@ -222,20 +204,12 @@ impl RedditClient {
         if response.status() == 200 {
             let auth_data = response.json::<AuthResponse>().await?;
 
-            let (access_token, expires_in) = match auth_data {
-                AuthResponse::AuthData {
-                    access_token,
-                    expires_in,
-                } => (
-                    access_token,
-                    tokio::time::Instant::now() + Duration::from_secs(expires_in),
-                ),
+            let access_token = match auth_data {
+                AuthResponse::AuthData { access_token, .. } => access_token,
                 AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
             };
 
             self.cfg.access_token = Some(access_token);
-            self.cfg.token_expires_in = Some(expires_in);
-
             Ok(self)
         } else {
             Err(util::RouxError::Status(response))

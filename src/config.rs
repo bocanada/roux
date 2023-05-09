@@ -1,5 +1,3 @@
-use tokio::time::Instant;
-
 #[derive(Debug, Clone)]
 pub struct Config {
     pub user_agent: String,
@@ -8,7 +6,6 @@ pub struct Config {
     pub username: Option<String>,
     pub password: Option<String>,
     pub access_token: Option<String>,
-    pub token_expires_in: Option<Instant>,
 }
 
 impl Config {
@@ -20,7 +17,6 @@ impl Config {
             username: None,
             password: None,
             access_token: None,
-            token_expires_in: None,
         }
     }
 }

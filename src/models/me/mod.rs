@@ -9,7 +9,6 @@ use ::url::Url;
 use serde::Serialize;
 
 use crate::client::Response;
-use crate::config::Config;
 use crate::models::me::response::MeData;
 use crate::models::{Friend, Inbox, Saved};
 use crate::util::url::JoinSegmentsExt;
@@ -19,8 +18,6 @@ use crate::RedditClient;
 /// Me
 #[derive(Clone)]
 pub struct Me {
-    /// Config
-    pub config: Config,
     /// Client
     pub client: RedditClient,
     base_url: Url,
@@ -28,9 +25,8 @@ pub struct Me {
 
 impl Me {
     /// Create a new `me`
-    pub fn new(config: &Config, client: &RedditClient) -> Me {
+    pub fn new(client: &RedditClient) -> Me {
         Me {
-            config: config.to_owned(),
             client: client.to_owned(),
             base_url: Url::parse("https://oauth.reddit.com/").unwrap(),
         }
@@ -181,7 +177,7 @@ impl Me {
     pub async fn saved(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
         let mut url = self.base_url.join_segments(&[
             "user",
-            self.config.username.as_ref().unwrap(),
+            self.client.cfg.username.as_ref().unwrap(),
             "saved",
             ".json",
         ]);
@@ -198,7 +194,7 @@ impl Me {
     pub async fn upvoted(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
         let mut url = self.base_url.join_segments(&[
             "user",
-            self.config.username.as_ref().unwrap(),
+            self.client.cfg.username.as_ref().unwrap(),
             "upvoted",
             ".json",
         ]);
@@ -215,7 +211,7 @@ impl Me {
     pub async fn downvoted(&self, options: Option<FeedOption>) -> Result<Saved, RouxError> {
         let mut url = self.base_url.join_segments(&[
             "user",
-            self.config.username.as_ref().unwrap(),
+            self.client.cfg.username.as_ref().unwrap(),
             "downvoted",
             ".json",
         ]);
@@ -267,12 +263,18 @@ impl Me {
     pub async fn logout(self) -> Result<(), RouxError> {
         let url = "https://www.reddit.com/api/v1/revoke_token";
 
-        let form = [("access_token", self.config.access_token.to_owned())];
+        let form = [(
+            "access_token",
+            self.client.cfg.access_token.to_owned().unwrap(),
+        )];
 
         let response = self
             .client
             .post(url)
-            .basic_auth(&self.config.client_id, Some(&self.config.client_secret))
+            .basic_auth(
+                &self.client.cfg.client_id,
+                Some(&self.client.cfg.client_secret),
+            )
             .form(&form)
             .send()
             .await?;
