@@ -187,6 +187,9 @@ impl RedditClient {
     }
 
     async fn login(mut self) -> Result<RedditClient, util::RouxError> {
+        // Remove the token from the config, so it doesn't return a 401
+        self.cfg.access_token = None;
+
         let url = &url::build_url("api/v1/access_token")[..];
         let form = [
             ("grant_type", "password"),
@@ -201,18 +204,18 @@ impl RedditClient {
 
         let response = request.send().await?;
 
-        if response.status() == 200 {
-            let auth_data = response.json::<AuthResponse>().await?;
-
-            let access_token = match auth_data {
-                AuthResponse::AuthData { access_token, .. } => access_token,
-                AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
-            };
-
-            self.cfg.access_token = Some(access_token);
-            Ok(self)
-        } else {
-            Err(util::RouxError::Status(response))
+        if response.status() != 200 {
+            return Err(util::RouxError::Status(response));
         }
+
+        let auth_data = response.json::<AuthResponse>().await?;
+
+        let access_token = match auth_data {
+            AuthResponse::AuthData { access_token, .. } => access_token,
+            AuthResponse::ErrorData { error } => return Err(util::RouxError::Auth(error)),
+        };
+
+        self.cfg.access_token = Some(access_token);
+        Ok(self)
     }
 }
